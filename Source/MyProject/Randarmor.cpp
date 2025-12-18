@@ -10,9 +10,11 @@
 #include "Camera/PlayerCameraManager.h"
 #include "HAL/FileManager.h"
 
+// 构造函数，初始化背景板
 ARandarmor::ARandarmor()
 {
     PrimaryActorTick.bCanEverTick = false;
+    
     // 1. 创建背景板组件
     BackgroundPlane = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackgroundPlane"));
     BackgroundPlane->SetupAttachment(RootComponent);
@@ -29,18 +31,25 @@ ARandarmor::ARandarmor()
     BackgroundPlane->SetCastShadow(false); // 背景板通常不需要投射阴影，看起来更像贴图
 }
 
+// 运行开始的初始化
 void ARandarmor::BeginPlay()
 {
+    // 启动GenerateScene
     Super::BeginPlay();
+    
+    //找到数据集的全局坐标
     GlobalIndex = FindCurrentMaxIndex();
     UE_LOG(LogTemp, Warning, TEXT("Dataset Generation Started. Next Index: %d"), GlobalIndex);
 }
 
+//核心函数
 void ARandarmor::GenerateScene()
 {
+    //换背景，清除上张图的数据
     UpdateBackground();
     ClearScene();
 
+    //初始检查
     UWorld* World = GetWorld();
     if (!World) return;
 
@@ -49,16 +58,18 @@ void ARandarmor::GenerateScene()
         UE_LOG(LogTemp, Error, TEXT("No Armor Meshes assigned in the generator!"));
         return;
     }
+
     APlayerController* MyPC = UGameplayStatics::GetPlayerController(this, 0);
     APlayerCameraManager* CamManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
     if (!CamManager) return;
 
     FVector CamLoc = CamManager->GetCameraLocation();
     FVector CamFwd = CamManager->GetActorForwardVector();
+    FRotator CameraRot = CamManager->GetCameraRotation();
 
     int32 SuccessCount = 0;
     int32 RandomTargetCount = FMath::RandRange(SpawnCountRange.X, SpawnCountRange.Y);
-    int32 MaxAttempts = RandomTargetCount * 20; 
+    int32 MaxAttempts = RandomTargetCount * 5; 
     int32 Attempts = 0;
 
     //生成装甲板
@@ -68,14 +79,15 @@ void ARandarmor::GenerateScene()
 
         //1. 随机生成位置 (在视锥体内)  要调FOV 
         float RandomDist = FMath::RandRange(SpawnDistanceRange.X, SpawnDistanceRange.Y);
-        FVector RandomDir = UKismetMathLibrary::RandomUnitVectorInConeInDegrees(CamFwd, SpawnConeHalfAngle);
+        FVector RandomDir = GetPlaneUniformRandomDir(CameraRot, SpawnHalfAngle, TargetAspectRatio);
         FVector SpawnLoc = CamLoc + (RandomDir * RandomDist);
 
         //2. 随机生成旋转 
         FRotator LookAtRot = UKismetMathLibrary::FindLookAtRotation(SpawnLoc, CamLoc);
         float RandomOffset = FMath::RandRange(-45.0f, 45.0f);
-        float FinalRot = RandomOffset + LookAtRot.Yaw + 90.0f;
-        FRotator SpawnRot = FRotator(0.0f, FinalRot,  15.0f);
+        float RandomPitch = FMath::RandRange(0.0f, 15.0f);
+        float FinalYaw = RandomOffset + LookAtRot.Yaw + 90.0f;
+        FRotator SpawnRot = FRotator(0.0f, FinalYaw,  15.0f);
 
        //检测 
 
@@ -306,20 +318,22 @@ void ARandarmor::UpdateBackground()
     float BgDistance = SpawnDistanceRange.Y + 2000.0f;
 
     FVector BgPos = CamLoc + (CamFwd * BgDistance);
+    float HalfAngleRad = FMath::DegreesToRadians(40.0f);
+    float WorldWidth = 2.0f * BgDistance * FMath::Tan(HalfAngleRad);
+    float WorldHeight = WorldWidth / (1440.0f / 1080.0f);
+         
+    
+    FRotator BgRot = FRotationMatrix::MakeFromX(-CamFwd).Rotator(); 
+    BackgroundPlane->SetWorldRotation(BgRot);
+    BackgroundPlane->AddLocalRotation(FRotator(90.0f, 0.0f, 0.0f));
+    BackgroundPlane->AddLocalRotation(FRotator(0.0f, 90.0f, 0.0f));
 
-    // 2. 计算朝向：让背景板正对着摄像头
-    // Plane 的默认法线是 Z 轴，我们需要让它立起来面对摄像机
-    FRotator BgRot = FRotationMatrix::MakeFromX(-CamFwd).Rotator(); // -Fwd 因为要面对我们
-
-    // 纠正 Plane 的默认旋转 (Plane 默认是平躺的，需要根据你的模型调整，通常引擎自带的 Plane 需要调整)
-    // 如果发现背景板是躺着的，试着加一个 90 度的 Pitch
-     BgRot += FRotator(90.0f, 0.0f, 0.0f); 
-
-    BackgroundPlane->SetWorldLocationAndRotation(BgPos, BgRot);
+    BackgroundPlane->SetWorldLocation(BgPos);
 
     // 3. 设置大小：让它足够大，填满整个视野
     // 500倍缩放通常足够覆盖整个屏幕
-    BackgroundPlane->SetWorldScale3D(FVector(500.0f, 500.0f, 1.0f));
+    FVector TargetScale = FVector(WorldWidth / 100.0f, WorldHeight / 100.0f, 1.0f);
+    BackgroundPlane->SetWorldScale3D(TargetScale);
 
     // 4. 【核心】随机换材质
     if (BackgroundMaterials.Num() > 0)
@@ -329,11 +343,29 @@ void ARandarmor::UpdateBackground()
     }
 }
 
+// 相机拍摄平面的为4:3(适应1440*1080)；
+FVector ARandarmor::GetPlaneUniformRandomDir(FRotator CamRotation, float HorizontalHalfAngleDeg, float AspectRatio)
+{
+    float RadH = FMath::DegreesToRadians(HorizontalHalfAngleDeg);
+    
+    float MaxTanH = FMath::Tan(RadH);
+    float MaxTanV = MaxTanH / AspectRatio;
+
+    float RandTanY = FMath::FRandRange(-1.0f, 1.0f) * MaxTanH;
+    float RandTanZ = FMath::FRandRange(-1.0f, 1.0f) * MaxTanV;
+
+    FVector LocalDir = FVector(1.0f, RandTanY, RandTanZ);
+    LocalDir.Normalize();
+
+    FQuat RotationQuat = FQuat(CamRotation);
+    FVector WorldDir = RotationQuat.RotateVector(LocalDir);
+    return WorldDir;
+}
 
 
 
 
-//索引
+//全局索引
 int32 ARandarmor::FindCurrentMaxIndex()
 {
     FString SearchDir = FPaths::ProjectSavedDir() / TEXT("YoloDataset/train/images");

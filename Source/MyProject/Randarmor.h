@@ -17,9 +17,8 @@ class MYPROJECT_API ARandarmor : public AActor
 public:
     ARandarmor();
 
-
-
     int32 Selectednumber;
+    
     UPROPERTY()
     TArray<AStaticMeshActor*> SpawnedArmors;
 
@@ -31,6 +30,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "DataGeneration")
     void ClearScene();
 
+    UFUNCTION(BlueprintCallable, Category = "CVSyntheticData")
+    FVector GetPlaneUniformRandomDir(FRotator CamRotation, float HorzontalHalfAngleDeg, float AspectRatio);
+
 protected:
     virtual void BeginPlay() override;
 
@@ -39,15 +41,18 @@ protected:
 
     
     UPROPERTY(EditAnywhere, Category = "Config", meta = (ToolTip = "X=最小数量, Y=最大数量"))
-    FIntPoint SpawnCountRange = FIntPoint(1, 8);
+    FIntPoint SpawnCountRange = FIntPoint(1, 5);
 
  
     UPROPERTY(EditAnywhere, Category = "Config")
-    FVector2D SpawnDistanceRange = FVector2D(100.0f, 500.0f);
+    FVector2D SpawnDistanceRange = FVector2D(100.0f, 200.0f);
+
+    UPROPERTY(EditAnywhere, Category = "Config")
+    float TargetAspectRatio = 1.333333f;
 
    
     UPROPERTY(EditAnywhere, Category = "Config")
-    float SpawnConeHalfAngle = 40.0f;
+    float SpawnHalfAngle = 40.0f;
 
     
     UPROPERTY(EditAnywhere, Category = "Config")
