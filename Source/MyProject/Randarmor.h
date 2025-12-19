@@ -45,7 +45,7 @@ protected:
 
  
     UPROPERTY(EditAnywhere, Category = "Config")
-    FVector2D SpawnDistanceRange = FVector2D(100.0f, 200.0f);
+    FVector2D SpawnDistanceRange = FVector2D(100.0f, 100.0f);
 
     UPROPERTY(EditAnywhere, Category = "Config")
     float TargetAspectRatio = 1.333333f;
@@ -54,6 +54,8 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Config")
     float SpawnHalfAngle = 40.0f;
 
+    UPROPERTY(EditAnywhere, Category = "Config")
+    FVector2D ScaleRange = FVector2D(0.2f, 2.0f);
     
     UPROPERTY(EditAnywhere, Category = "Config")
     float OverlapCheckRadius = 25.0f;

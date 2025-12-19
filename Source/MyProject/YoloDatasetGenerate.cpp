@@ -1,4 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
 #include "YoloDatasetGenerate.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/PlayerController.h"
@@ -11,7 +10,7 @@
 #include "Engine/GameViewportClient.h"
 #include "UnrealClient.h"
 
-// 1. 辅助函数实现
+// 1. 生成存放数据的文件夹
 void UYoloDatasetGenerate::EnsureDirectoriesExist(FString BasePath)
 {
     IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -25,7 +24,7 @@ void UYoloDatasetGenerate::EnsureDirectoriesExist(FString BasePath)
     }
 }
 
-// 2. 计算函数实现
+// 2. 计算Result格式数据（类型+关键点）
 FYoloData UYoloDatasetGenerate::CalculateYoloFromSockets(UStaticMeshComponent* MeshComp, APlayerController* PC)
 {
     FYoloData Result;
@@ -91,6 +90,7 @@ void UYoloDatasetGenerate::SaveDatasetEntry(UWorld* WorldContext, int32 Index, c
 {
     if (!WorldContext) return;
 
+    //
     FString BaseDir = FPaths::ProjectSavedDir() / TEXT("YoloDataset/train");
     EnsureDirectoriesExist(BaseDir);
 
