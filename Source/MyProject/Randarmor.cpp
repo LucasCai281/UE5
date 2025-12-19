@@ -47,6 +47,8 @@ void ARandarmor::GenerateScene()
 {
     //换背景，清除上张图的数据
     UpdateBackground();
+    int32 RandomTheme = FMath::RandRange(0, 2);
+    ApplyTheme(RandomTheme);
     ClearScene();
 
     //初始检查
@@ -198,7 +200,7 @@ void ARandarmor::GenerateScene()
         TimerHandle_Save,
         this,
         &ARandarmor::ExecuteSave, 
-        0.2f, // 延迟 0.1 秒
+        0.2f, // 延迟 0.2秒
         false
     );
 
@@ -369,10 +371,14 @@ void ARandarmor::UpdateBackground()
 
             if (DMI)
             {
-
+                BackgroundPlane->SetMaterial(0, DMI);
+            }
+            else
+            {
+                BackgroundPlane->SetMaterial(0, BaseMat);
             }
         }
-        BackgroundPlane->SetMaterial(0, BackgroundMaterials[RandomIndex]);
+        
     }
     else
     {
@@ -477,6 +483,8 @@ void ARandarmor::ApplyTheme(int32 ThemeIndex)
     // TargetCameraComp->PostProcessSettings.ColorSaturation = FVector4(1.2f, 1.2f, 1.2f, 1.0f); 
 
     // 设置曝光 (在预设范围内随机)
+    TargetCameraComp->PostProcessSettings.bOverride_AutoExposureMethod = true;
+    TargetCameraComp->PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
     TargetCameraComp->PostProcessSettings.bOverride_AutoExposureBias = true;
     TargetCameraComp->PostProcessSettings.AutoExposureBias = FMath::RandRange(SelectedTheme.MinExposure, SelectedTheme.MaxExposure);
 
@@ -488,13 +496,11 @@ void ARandarmor::ApplyTheme(int32 ThemeIndex)
         if (DMI)
         {
             // 设置我们在材质里预留的 "TintColor" 参数
-            DMI->SetVectorParameterValue(FName("TintColor"), FinalBgColor);
+            DMI->SetVectorParameterValue(FName("ColorTint"), FinalBgColor);
         }
         else
         {
-            // 如果还没创建 DMI，就在这里创建并设置 (防止空指针)
-            // (建议把 UpdateBackground 里的 DMI 创建逻辑挪过来或者复用)
-            // ...
+            UE_LOG(LogTemp, Warning, TEXT("ApplyTheme: Background material is not Dynamic!"));
         }
     }
 }
