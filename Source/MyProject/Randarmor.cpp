@@ -60,8 +60,19 @@ void ARandarmor::GenerateScene()
     }
 
     APlayerController* MyPC = UGameplayStatics::GetPlayerController(this, 0);
+    if (MyPC)
+    {
+        AActor* ViewTarget = MyPC->GetViewTarget();  //返回看世界的Target
+        if (ViewTarget)
+        {
+            //从Actor身上找到相机组件
+            TargetCameraComp = ViewTarget->FindComponentByClass<UCameraComponent>();
+        }
+    }
     APlayerCameraManager* CamManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
     if (!CamManager) return;
+
+    RandomizeExposure();
 
     FVector CamLoc = CamManager->GetCameraLocation();
     FVector CamFwd = CamManager->GetActorForwardVector();
@@ -89,6 +100,10 @@ void ARandarmor::GenerateScene()
         float FinalYaw = RandomOffset + LookAtRot.Yaw + 90.0f;
         FRotator SpawnRot = FRotator(0.0f, FinalYaw,  15.0f);
 
+        Selectednumber = FMath::RandRange(0, ArmorMeshes.Num() - 1);
+        Selectedscale = FMath::RandRange(ScaleRange.X, ScaleRange.Y);
+        float CurrentCheckRadius = OverlapCheckRadius* Selectedscale;
+
        //检测 
 
         // 3.  背对检测：如果背面朝向摄像头，直接跳过
@@ -98,7 +113,7 @@ void ARandarmor::GenerateScene()
         }
 
         // 4 . 空间占用检测：检查该位置是否已经有物体 (包含场景静态物体和其他装甲板)
-        if (IsSpaceOccupied(SpawnLoc, OverlapCheckRadius))
+        if (IsSpaceOccupied(SpawnLoc, CurrentCheckRadius))
         {
             continue;
         }
@@ -106,15 +121,21 @@ void ARandarmor::GenerateScene()
         // 生成实体 
 
         // 随机选一个 Mesh
-        Selectednumber = FMath::RandRange(0, ArmorMeshes.Num() - 1);
+        
+
         UStaticMesh* SelectedMesh = ArmorMeshes[Selectednumber];
         Labelnumber.Add(Selectednumber);
+        FTransform SpawnTransform(SpawnRot, SpawnLoc, FVector(Selectedscale));
 
         FActorSpawnParameters SpawnParams;
         SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
         // 生成 StaticMeshActor
-        AStaticMeshActor* NewArmor = World->SpawnActor<AStaticMeshActor>(SpawnLoc, SpawnRot, SpawnParams);
+        AStaticMeshActor* NewArmor = World->SpawnActor<AStaticMeshActor>(
+            AStaticMeshActor::StaticClass(),
+            SpawnTransform,
+            SpawnParams
+        );
 
         if (NewArmor)
         {
@@ -126,7 +147,9 @@ void ARandarmor::GenerateScene()
                 MeshComp->SetStaticMesh(SelectedMesh);
                
                 MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // 开启碰撞以便射线检测
-            }
+               
+             }
+            
 
        
         //解决阻挡问题    
@@ -175,7 +198,7 @@ void ARandarmor::GenerateScene()
         TimerHandle_Save,
         this,
         &ARandarmor::ExecuteSave, 
-        0.1f, // 延迟 0.1 秒
+        0.2f, // 延迟 0.1 秒
         false
     );
 
@@ -335,11 +358,25 @@ void ARandarmor::UpdateBackground()
     FVector TargetScale = FVector(WorldWidth / 100.0f, WorldHeight / 100.0f, 1.0f);
     BackgroundPlane->SetWorldScale3D(TargetScale);
 
-    // 4. 【核心】随机换材质
+    // 4. 随机换材质
     if (BackgroundMaterials.Num() > 0)
     {
         int32 RandomIndex = FMath::RandRange(0, BackgroundMaterials.Num() - 1);
+        UMaterialInterface* BaseMat = BackgroundMaterials[RandomIndex];
+        if (BaseMat)
+        {
+            UMaterialInstanceDynamic* DMI = UMaterialInstanceDynamic::Create(BaseMat, this);
+
+            if (DMI)
+            {
+
+            }
+        }
         BackgroundPlane->SetMaterial(0, BackgroundMaterials[RandomIndex]);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("No background materials"));
     }
 }
 
@@ -362,8 +399,105 @@ FVector ARandarmor::GetPlaneUniformRandomDir(FRotator CamRotation, float Horizon
     return WorldDir;
 }
 
+//随机曝光
+void ARandarmor::RandomizeExposure()
+{
+    if (TargetCameraComp)
+    {
+        TargetCameraComp->PostProcessSettings.bOverride_AutoExposureBias = true;
+        TargetCameraComp->PostProcessSettings.bOverride_AutoExposureMethod = true;
+        TargetCameraComp->PostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+        float RandomExposure = FMath::RandRange(8.0f, 12.0f);
+        TargetCameraComp->PostProcessSettings.AutoExposureBias = RandomExposure;
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("RandomizeExposure Failed"));
+    }
+}
+
+void ARandarmor::ApplyTheme(int32 ThemeIndex)
+{
+    if (!TargetCameraComp) return;
+
+    FSceneTheme SelectedTheme;
+    switch (ThemeIndex)
+    {
+    case 0:
+        // 颜色：冷蓝，带一点青色
+        SelectedTheme.LightColor = FLinearColor(0.6f, 0.8f, 1.2f);
+        // 背景：深蓝
+        SelectedTheme.BgColor = FLinearColor(0.0f, 0.1f, 0.5f);
+        // 曝光：蓝色场景通常较暗，稍微降低曝光
+        SelectedTheme.MinExposure = -2.0f;
+        SelectedTheme.MaxExposure = -0.5f;
+        break;
+    case 1: // 【红色警报】(参考你的图5)
+        // 颜色：暖红，稍微偏橙
+        SelectedTheme.LightColor = FLinearColor(1.2f, 0.7f, 0.6f);
+        // 背景：深红
+        SelectedTheme.BgColor = FLinearColor(0.5f, 0.0f, 0.0f);
+        // 曝光：红色容易过饱和，压暗一点
+        SelectedTheme.MinExposure = -2.5f;
+        SelectedTheme.MaxExposure = -1.0f;
+        break;
+
+    default: // 【灰色工业/暗黑】(参考你的图2)
+        // 颜色：低饱和度的冷灰
+        SelectedTheme.LightColor = FLinearColor(0.9f, 0.95f, 1.0f);
+        // 背景：近乎黑色
+        SelectedTheme.BgColor = FLinearColor(0.05f, 0.05f, 0.05f);
+        // 曝光：可以稍亮一点，或者保持很暗
+        SelectedTheme.MinExposure = -1.5f;
+        SelectedTheme.MaxExposure = 0.0f;
+        break;
+    }
+    //随机因子扰动
+    float R_Offset = FMath::RandRange(-0.1f, 0.1f);
+    float G_Offset = FMath::RandRange(-0.1f, 0.1f);
+    float B_Offset = FMath::RandRange(-0.1f, 0.1f);
+
+    // 应用扰动到 Gamma 颜色 (Global Color Grading)
+    FLinearColor FinalGamma = SelectedTheme.LightColor + FLinearColor(R_Offset, G_Offset, B_Offset, 0.0f);
+    
+    // 应用扰动到背景颜色 (背景可以变化大一点)
+    FLinearColor FinalBgColor = SelectedTheme.BgColor + FLinearColor(R_Offset*0.5f, G_Offset*0.5f, B_Offset*0.5f, 0.0f);
+
+    // --- 3. 设置相机后期处理 (Post Process) ---
+
+    // 开启 Gamma (颜色分级) 覆盖
+    TargetCameraComp->PostProcessSettings.bOverride_ColorGamma = true;
 
 
+    // 设置 Gamma 值 (控制画面整体色调)
+    TargetCameraComp->PostProcessSettings.ColorGamma = FVector4(FinalGamma.R, FinalGamma.G, FinalGamma.B, 1.0f);
+
+    //改饱和度
+    // TargetCameraComp->PostProcessSettings.bOverride_ColorSaturation = true;
+    // TargetCameraComp->PostProcessSettings.ColorSaturation = FVector4(1.2f, 1.2f, 1.2f, 1.0f); 
+
+    // 设置曝光 (在预设范围内随机)
+    TargetCameraComp->PostProcessSettings.bOverride_AutoExposureBias = true;
+    TargetCameraComp->PostProcessSettings.AutoExposureBias = FMath::RandRange(SelectedTheme.MinExposure, SelectedTheme.MaxExposure);
+
+    // --- 4. 设置背景板材质颜色 ---
+    if (BackgroundPlane)
+    {
+        // 获取当前的动态材质 (假设你在 UpdateBackground 里已经创建了 DMI)
+        UMaterialInstanceDynamic* DMI = Cast<UMaterialInstanceDynamic>(BackgroundPlane->GetMaterial(0));
+        if (DMI)
+        {
+            // 设置我们在材质里预留的 "TintColor" 参数
+            DMI->SetVectorParameterValue(FName("TintColor"), FinalBgColor);
+        }
+        else
+        {
+            // 如果还没创建 DMI，就在这里创建并设置 (防止空指针)
+            // (建议把 UpdateBackground 里的 DMI 创建逻辑挪过来或者复用)
+            // ...
+        }
+    }
+}
 
 //全局索引
 int32 ARandarmor::FindCurrentMaxIndex()

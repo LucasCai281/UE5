@@ -6,8 +6,16 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/StaticMeshActor.h"
+#include "Camera/CameraComponent.h"
 #include "Randarmor.generated.h"
 
+struct FSceneTheme
+{
+    FLinearColor LightColor;
+    FLinearColor BgColor;
+    float MinExposure;
+    float MaxExposure;
+};
 
 UCLASS()
 class MYPROJECT_API ARandarmor : public AActor
@@ -18,9 +26,13 @@ public:
     ARandarmor();
 
     int32 Selectednumber;
+    float Selectedscale;
     
     UPROPERTY()
     TArray<AStaticMeshActor*> SpawnedArmors;
+
+    UFUNCTION()
+    void RandomizeExposure();
 
    
     UFUNCTION(BlueprintCallable, Category = "DataGeneration")
@@ -35,6 +47,8 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    UPROPERTY()
+    UCameraComponent* TargetCameraComp;
 
     UPROPERTY(EditAnywhere, Category = "Config")
     TArray<UStaticMesh*> ArmorMeshes;
@@ -81,5 +95,7 @@ private:
     FTimerHandle TimerHandle_Save;
     void ExecuteSave();
     FString LabelData;
+
+    void ApplyTheme(int32 ThemeIndex);
     
 };
