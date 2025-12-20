@@ -53,9 +53,10 @@ public:
      * 注意：因为是 static 函数，无法直接调用 GetWorld()，所以需要传入 World 或者 ViewportClient
      */
     static void SaveDatasetEntry(UWorld* WorldContext, int32 Index, const FString& LabelString);
+    static void SaveDatasetEntry_single(UWorld* WorldContext, int32 Index, const FString& LabelString);
 
 private:
     // 辅助函数：确保文件夹存在 
     static void EnsureDirectoriesExist(FString BasePath);
-    static void EnsureDirectoriesExist_Single(FString BasePath);
+
 };

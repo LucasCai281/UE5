@@ -24,18 +24,7 @@ void UYoloDatasetGenerate::EnsureDirectoriesExist(FString BasePath)
     }
 }
 
-void UYoloDatasetGenerate::EnsureDirectoriesExist_Single(FString BasePath)
-{
-    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-    if (!PlatformFile.DirectoryExists(*(BasePath / TEXT("images"))))
-    {
-        PlatformFile.CreateDirectoryTree(*(BasePath / TEXT("images")));
-    }
-    if (!PlatformFile.DirectoryExists(*(BasePath / TEXT("labels"))))
-    {
-        PlatformFile.CreateDirectoryTree(*(BasePath / TEXT("labels")));
-    }
-}
+
 
 // 2. 计算Result格式数据（类型+关键点）
 FYoloData UYoloDatasetGenerate::CalculateYoloFromSockets(UStaticMeshComponent* MeshComp, APlayerController* PC)
@@ -98,6 +87,7 @@ FYoloData UYoloDatasetGenerate::CalculateYoloFromSockets(UStaticMeshComponent* M
     return Result;
 }
 
+
 // 3. 保存函数实现 (注意参数里的 WorldContext)
 void UYoloDatasetGenerate::SaveDatasetEntry(UWorld* WorldContext, int32 Index, const FString& LabelString)
 {
@@ -105,6 +95,50 @@ void UYoloDatasetGenerate::SaveDatasetEntry(UWorld* WorldContext, int32 Index, c
 
     //
     FString BaseDir = FPaths::ProjectSavedDir() / TEXT("YoloDataset/train");
+    EnsureDirectoriesExist(BaseDir);
+
+    FString FileName = FString::Printf(TEXT("%06d"), Index);
+    FString ImgFilename = BaseDir / TEXT("images") / (FileName + TEXT(".png"));
+    FString TxtFilename = BaseDir / TEXT("labels") / (FileName + TEXT(".txt"));
+
+    // 保存 TXT
+    FFileHelper::SaveStringToFile(LabelString, *TxtFilename);
+
+    // 保存 PNG
+    UGameViewportClient* ViewportClient = WorldContext->GetGameViewport();
+    if (!ViewportClient) return;
+
+    FViewport* Viewport = ViewportClient->Viewport;
+    if (!Viewport) return;
+
+    TArray<FColor> Bitmap;
+    Viewport->ReadPixels(Bitmap); // 这是一个耗时操作
+
+    for (FColor& Pixel : Bitmap) Pixel.A = 255;
+
+    int32 Width = Viewport->GetSizeXY().X;
+    int32 Height = Viewport->GetSizeXY().Y;
+
+    IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+    TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+
+    if (ImageWrapper.IsValid())
+    {
+        if (ImageWrapper->SetRaw(Bitmap.GetData(), Bitmap.Num() * sizeof(FColor), Width, Height, ERGBFormat::BGRA, 8))
+        {
+            const TArray64<uint8>& CompressedData = ImageWrapper->GetCompressed();
+            FFileHelper::SaveArrayToFile(CompressedData, *ImgFilename);
+        }
+    }
+}
+
+//SingleArmor数据集保存
+void UYoloDatasetGenerate::SaveDatasetEntry_single(UWorld* WorldContext, int32 Index, const FString& LabelString)
+{
+    if (!WorldContext) return;
+
+    //
+    FString BaseDir = FPaths::ProjectSavedDir() / TEXT("YoloDataset/train_single");
     EnsureDirectoriesExist(BaseDir);
 
     FString FileName = FString::Printf(TEXT("%06d"), Index);
