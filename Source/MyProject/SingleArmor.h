@@ -7,11 +7,11 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/StaticMeshActor.h"
 #include "Camera/CameraComponent.h"
-#include "Randarmor.generated.h"
+#include "SingleArmor.generated.h"
 
 USTRUCT(BlueprintType)
 struct FSceneTheme
-{   
+{
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -26,25 +26,23 @@ struct FSceneTheme
 };
 
 UCLASS()
-class MYPROJECT_API ARandarmor : public AActor
+class MYPROJECT_API ASingleArmor : public AActor
 {
     GENERATED_BODY()
 
 public:
-    ARandarmor();
+    SingleArmor();
 
     int32 Selectednumber;
     float Selectedscale;
-    
+
     UPROPERTY()
     TArray<AStaticMeshActor*> SpawnedArmors;
 
-
-       
     UFUNCTION(BlueprintCallable, Category = "DataGeneration")
     void GenerateScene();
 
-  
+
     UFUNCTION(BlueprintCallable, Category = "DataGeneration")
     void ClearScene();
 
@@ -62,31 +60,31 @@ protected:
     UPROPERTY(EditAnywhere, Category = "Config")
     TArray<UStaticMesh*> ArmorMeshes;
 
-    
-    UPROPERTY(EditAnywhere, Category = "Config", meta = (ToolTip = "X=最小数量, Y=最大数量"))
-    FIntPoint SpawnCountRange = FIntPoint(1, 5);
 
- 
+    UPROPERTY(EditAnywhere, Category = "Config", meta = (ToolTip = "X=最小数量, Y=最大数量"))
+    FIntPoint SpawnCountRange = FIntPoint(1, 1);
+
+
     UPROPERTY(EditAnywhere, Category = "Config")
     FVector2D SpawnDistanceRange = FVector2D(100.0f, 100.0f);
 
     UPROPERTY(EditAnywhere, Category = "Config")
-    float TargetAspectRatio = 1.333333f;
+    float TargetAspectRatio = 1.0f;
 
-   
+
     UPROPERTY(EditAnywhere, Category = "Config")
     float SpawnHalfAngle = 40.0f;
 
     UPROPERTY(EditAnywhere, Category = "Config")
     FVector2D ScaleRange = FVector2D(0.5f, 2.0f);
-    
+
     UPROPERTY(EditAnywhere, Category = "Config")
     float OverlapCheckRadius = 25.0f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UStaticMeshComponent* BackgroundPlane;
 
-    // 存放背景材质的列表（在编辑器里把图片生成的材质拖进去）
+    // 存放背景材质的列表
     UPROPERTY(EditAnywhere, Category = "Config|BgMaterials")
     TArray<UMaterialInterface*> BackgroundMaterials;
 
@@ -106,5 +104,6 @@ private:
     FString LabelData;
 
     void ApplyTheme(int32 ThemeIndex);
-    
+
 };
+

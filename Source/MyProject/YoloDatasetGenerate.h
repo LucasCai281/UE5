@@ -57,4 +57,5 @@ public:
 private:
     // 辅助函数：确保文件夹存在 
     static void EnsureDirectoriesExist(FString BasePath);
+    static void EnsureDirectoriesExist_Single(FString BasePath);
 };

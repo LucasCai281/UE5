@@ -1,4 +1,4 @@
-#include "Randarmor.h"
+#include "SingleArmor.h"
 #include "YoloDatasetGenerate.h"
 #include "Engine/StaticMeshActor.h"
 #include "Kismet/GameplayStatics.h"
@@ -11,10 +11,10 @@
 #include "HAL/FileManager.h"
 
 // 构造函数，初始化背景板
-ARandarmor::ARandarmor()
+ASingleArmor::ASingleArmor()
 {
     PrimaryActorTick.bCanEverTick = false;
-    
+
     // 1. 创建背景板组件
     BackgroundPlane = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("BackgroundPlane"));
     BackgroundPlane->SetupAttachment(RootComponent);
@@ -32,18 +32,18 @@ ARandarmor::ARandarmor()
 }
 
 // 运行开始的初始化
-void ARandarmor::BeginPlay()
+void ASingleArmor::BeginPlay()
 {
     // 启动GenerateScene
     Super::BeginPlay();
-    
+
     //找到数据集的全局坐标
     GlobalIndex = FindCurrentMaxIndex();
     UE_LOG(LogTemp, Warning, TEXT("Dataset Generation Started. Next Index: %d"), GlobalIndex);
 }
 
 //核心函数
-void ARandarmor::GenerateScene()
+void ASingleArmor::GenerateScene()
 {
     //换背景，清除上张图的数据
     UpdateBackground();
@@ -51,7 +51,7 @@ void ARandarmor::GenerateScene()
     {
         UE_LOG(LogTemp, Error, TEXT("Add Theme Presets in Editor!"));
     }
-    int32 RandomTheme = FMath::RandRange(0, ThemePresets.Num()-1);
+    int32 RandomTheme = FMath::RandRange(0, ThemePresets.Num() - 1);
     ApplyTheme(RandomTheme);
     ClearScene();
 
@@ -78,7 +78,7 @@ void ARandarmor::GenerateScene()
     APlayerCameraManager* CamManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
     if (!CamManager) return;
 
-    
+
 
     FVector CamLoc = CamManager->GetCameraLocation();
     FVector CamFwd = CamManager->GetActorForwardVector();
@@ -86,7 +86,7 @@ void ARandarmor::GenerateScene()
 
     int32 SuccessCount = 0;
     int32 RandomTargetCount = FMath::RandRange(SpawnCountRange.X, SpawnCountRange.Y);
-    int32 MaxAttempts = RandomTargetCount * 5; 
+    int32 MaxAttempts = RandomTargetCount * 5;
     int32 Attempts = 0;
 
     //生成装甲板
@@ -104,15 +104,15 @@ void ARandarmor::GenerateScene()
         float RandomOffset = FMath::RandRange(-45.0f, 45.0f);
         float RandomPitch = FMath::RandRange(0.0f, 15.0f);
         float FinalYaw = RandomOffset + LookAtRot.Yaw + 90.0f;
-        FRotator SpawnRot = FRotator(0.0f, FinalYaw,  15.0f);
+        FRotator SpawnRot = FRotator(0.0f, FinalYaw, 15.0f);
 
         Selectednumber = FMath::RandRange(0, ArmorMeshes.Num() - 1);
         Selectedscale = FMath::RandRange(ScaleRange.X, ScaleRange.Y);
-        float CurrentCheckRadius = OverlapCheckRadius* Selectedscale;
+        float CurrentCheckRadius = OverlapCheckRadius * Selectedscale;
 
-       //检测 
+        //检测 
 
-        // 3.  背对检测：如果背面朝向摄像头，直接跳过
+         // 3.  背对检测：如果背面朝向摄像头，直接跳过
         if (IsBackFacing(SpawnLoc, SpawnRot, CamLoc))
         {
             continue;
@@ -127,7 +127,7 @@ void ARandarmor::GenerateScene()
         // 生成实体 
 
         // 随机选一个 Mesh
-        
+
 
         UStaticMesh* SelectedMesh = ArmorMeshes[Selectednumber];
         Labelnumber.Add(Selectednumber);
@@ -151,72 +151,71 @@ void ARandarmor::GenerateScene()
             {
                 MeshComp->SetMobility(EComponentMobility::Movable); // 必须是可移动的
                 MeshComp->SetStaticMesh(SelectedMesh);
-               
-                MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // 开启碰撞以便射线检测
-               
-             }
-            
 
-       
-        //解决阻挡问题    
-       if (IsOccluded(SpawnLoc, CamLoc, NewArmor))
+                MeshComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics); // 开启碰撞以便射线检测
+
+            }
+
+
+
+            //解决阻挡问题    
+            if (IsOccluded(SpawnLoc, CamLoc, NewArmor))
             {
-                NewArmor->Destroy(); 
+                NewArmor->Destroy();
                 continue;
             }
-             
-       if (!IsFullyInView(NewArmor))
-        {
-         
-           NewArmor->Destroy();
-           continue; 
-        }
 
-         
+            if (!IsFullyInView(NewArmor))
+            {
+
+                NewArmor->Destroy();
+                continue;
+            }
+
+
             SpawnedArmors.Add(NewArmor);
             SuccessCount++;
         }
     }
 
-  
+
 
     UE_LOG(LogTemp, Log, TEXT("Generation Complete. Attempts: %d, Success: %d"), Attempts, SuccessCount);
 
     if (SuccessCount == 0) return;
 
     LabelData = "";
-    for (int i=0; i < SpawnedArmors.Num(); i++)
-    {   
+    for (int i = 0; i < SpawnedArmors.Num(); i++)
+    {
         UStaticMeshComponent* MeshComp = SpawnedArmors[i]->GetStaticMeshComponent();
         FYoloData Data = UYoloDatasetGenerate::CalculateYoloFromSockets(MeshComp, MyPC);
         Data.ClassID = Labelnumber[i];
         if (Data.bIsValid)
         {
-            
-            LabelData += FString::Printf(TEXT("%d %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f %.6f\n"),
-                Data.ClassID, Data.CenterX, Data.CenterY, Data.Width, Data.Height,
-                Data.Sockets[0].X, Data.Sockets[0].Y, Data.Sockets[1].X, Data.Sockets[1].Y, Data.Sockets[2].X, Data.Sockets[2].Y, Data.Sockets[3].X, Data.Sockets[3].Y);
+
+            LabelData += FString::Printf(TEXT("%d \n"),
+                Data.ClassID);
         }
-        
+
     }
 
     GetWorld()->GetTimerManager().SetTimer(
         TimerHandle_Save,
         this,
-        &ARandarmor::ExecuteSave, 
+        &ASingleArmor::ExecuteSave,
         0.2f, // 延迟 0.2秒
         false
     );
 
- }
+}
 
-void ARandarmor::ExecuteSave()
+void ASingleArmor::ExecuteSave()
 {
     UYoloDatasetGenerate::SaveDatasetEntry(GetWorld(), GlobalIndex, LabelData);
     GlobalIndex++;
 }
 
-void ARandarmor::ClearScene()
+void ASingleArmor::ClearScene()
 {
     for (AActor* Actor : SpawnedArmors)
     {
@@ -229,7 +228,7 @@ void ARandarmor::ClearScene()
     Labelnumber.Empty();
 }
 
-bool ARandarmor::IsBackFacing(const FVector& ArmorLocation, const FRotator& ArmorRotation, const FVector& CameraLocation)
+bool ASingleArmor::IsBackFacing(const FVector& ArmorLocation, const FRotator& ArmorRotation, const FVector& CameraLocation)
 {
     // 计算：摄像头 -> 装甲板 的方向向量
     FVector CamToArmor = (ArmorLocation - CameraLocation).GetSafeNormal();
@@ -240,8 +239,8 @@ bool ARandarmor::IsBackFacing(const FVector& ArmorLocation, const FRotator& Armo
     return FVector::DotProduct(CamToArmor, ArmorForward) > 0.0f;
 }
 
-bool ARandarmor::IsSpaceOccupied(const FVector& Location, float Radius)
-    {
+bool ASingleArmor::IsSpaceOccupied(const FVector& Location, float Radius)
+{
     UWorld* World = GetWorld();
     if (!World) return false;
 
@@ -265,11 +264,11 @@ bool ARandarmor::IsSpaceOccupied(const FVector& Location, float Radius)
     return bHitDynamic || bHitStatic;
 }
 
-bool ARandarmor::IsOccluded(const FVector& ArmorLocation, const FVector& CameraLocation, const AActor* CurrentArmor)
+bool ASingleArmor::IsOccluded(const FVector& ArmorLocation, const FVector& CameraLocation, const AActor* CurrentArmor)
 {
     FHitResult HitResult;
     FCollisionQueryParams QueryParams;
-    QueryParams.AddIgnoredActor(CurrentArmor); 
+    QueryParams.AddIgnoredActor(CurrentArmor);
 
     bool bHit = GetWorld()->LineTraceSingleByChannel(
         HitResult,
@@ -278,12 +277,12 @@ bool ARandarmor::IsOccluded(const FVector& ArmorLocation, const FVector& CameraL
         ECC_Visibility, // 使用可见性通道
         QueryParams
     );
-    
+
     return bHit;
 }
 
 
-bool ARandarmor::IsFullyInView(const AActor* TargetActor)
+bool ASingleArmor::IsFullyInView(const AActor* TargetActor)
 {
     if (!TargetActor) return false;
 
@@ -320,7 +319,7 @@ bool ARandarmor::IsFullyInView(const AActor* TargetActor)
 
         if (!bOnScreen)
         {
-            return false; 
+            return false;
         }
 
         // 检查坐标是否超出屏幕分辨率范围
@@ -333,7 +332,7 @@ bool ARandarmor::IsFullyInView(const AActor* TargetActor)
     return true;
 }
 
-void ARandarmor::UpdateBackground()
+void ASingleArmor::UpdateBackground()
 {
     APlayerCameraManager* CamManager = UGameplayStatics::GetPlayerCameraManager(this, 0);
     if (!CamManager) return;
@@ -350,9 +349,9 @@ void ARandarmor::UpdateBackground()
     float HalfAngleRad = FMath::DegreesToRadians(40.0f);
     float WorldWidth = 2.0f * BgDistance * FMath::Tan(HalfAngleRad);
     float WorldHeight = WorldWidth / (1440.0f / 1080.0f);
-         
-    
-    FRotator BgRot = FRotationMatrix::MakeFromX(-CamFwd).Rotator(); 
+
+
+    FRotator BgRot = FRotationMatrix::MakeFromX(-CamFwd).Rotator();
     BackgroundPlane->SetWorldRotation(BgRot);
     BackgroundPlane->AddLocalRotation(FRotator(90.0f, 0.0f, 0.0f));
     BackgroundPlane->AddLocalRotation(FRotator(0.0f, 90.0f, 0.0f));
@@ -381,7 +380,7 @@ void ARandarmor::UpdateBackground()
                 BackgroundPlane->SetMaterial(0, BaseMat);
             }
         }
-        
+
     }
     else
     {
@@ -390,10 +389,10 @@ void ARandarmor::UpdateBackground()
 }
 
 // 相机拍摄平面的为4:3(适应1440*1080)；
-FVector ARandarmor::GetPlaneUniformRandomDir(FRotator CamRotation, float HorizontalHalfAngleDeg, float AspectRatio)
+FVector ASingleArmor::GetPlaneUniformRandomDir(FRotator CamRotation, float HorizontalHalfAngleDeg, float AspectRatio)
 {
     float RadH = FMath::DegreesToRadians(HorizontalHalfAngleDeg);
-    
+
     float MaxTanH = FMath::Tan(RadH);
     float MaxTanV = MaxTanH / AspectRatio;
 
@@ -408,12 +407,12 @@ FVector ARandarmor::GetPlaneUniformRandomDir(FRotator CamRotation, float Horizon
     return WorldDir;
 }
 
-void ARandarmor::ApplyTheme(int32 ThemeIndex)
+void ASingleArmor::ApplyTheme(int32 ThemeIndex)
 {
     if (!TargetCameraComp) return;
 
     const FSceneTheme& SelectedTheme = ThemePresets[ThemeIndex];
-   
+
     //随机因子扰动
     float R_Offset = FMath::RandRange(-0.1f, 0.1f);
     float G_Offset = FMath::RandRange(-0.1f, 0.1f);
@@ -421,14 +420,14 @@ void ARandarmor::ApplyTheme(int32 ThemeIndex)
 
     // 应用扰动到 Gamma 颜色 (Global Color Grading)
     FLinearColor FinalGamma = SelectedTheme.LightColor + FLinearColor(R_Offset, G_Offset, B_Offset, 0.0f);
-    
+
     // 应用扰动到背景颜色 (背景可以变化大一点)
-    FLinearColor FinalBgColor = SelectedTheme.BgColor + FLinearColor(R_Offset*0.5f, G_Offset*0.5f, B_Offset*0.5f, 0.0f);
+    FLinearColor FinalBgColor = SelectedTheme.BgColor + FLinearColor(R_Offset * 0.5f, G_Offset * 0.5f, B_Offset * 0.5f, 0.0f);
 
     // --- 3. 设置相机后期处理 (Post Process) ---
 
     // 开启 Gamma (颜色分级) 覆盖
-    TargetCameraComp->PostProcessSettings.bOverride_ColorGamma = true;  
+    TargetCameraComp->PostProcessSettings.bOverride_ColorGamma = true;
     TargetCameraComp->PostProcessSettings.ColorGamma = FVector4(FinalGamma.R, FinalGamma.G, FinalGamma.B, 1.0f);
 
     //改饱和度
@@ -459,15 +458,15 @@ void ARandarmor::ApplyTheme(int32 ThemeIndex)
 }
 
 //全局索引
-int32 ARandarmor::FindCurrentMaxIndex()
+int32 ASingleArmor::FindCurrentMaxIndex()
 {
     FString SearchDir = FPaths::ProjectSavedDir() / TEXT("YoloDataset/train/images");
     IFileManager& FileManager = IFileManager::Get();
 
     if (!FileManager.DirectoryExists(*SearchDir))  return 0;
-   
+
     TArray<FString> FoundFiles;
-   
+
     FileManager.FindFiles(FoundFiles, *(SearchDir / TEXT("*.png")), true, false);
 
     if (FoundFiles.Num() == 0)
@@ -480,7 +479,7 @@ int32 ARandarmor::FindCurrentMaxIndex()
     for (const FString& File : FoundFiles)
     {
         FString NameOnly = FPaths::GetBaseFilename(File);
-        
+
         if (NameOnly.IsNumeric())
         {
             int32 FileIndex = FCString::Atoi(*NameOnly);
@@ -492,11 +491,4 @@ int32 ARandarmor::FindCurrentMaxIndex()
     }
     return MaxIndex + 1;
 }
-    
-
-
-
-
-
-
 

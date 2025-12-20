@@ -24,6 +24,19 @@ void UYoloDatasetGenerate::EnsureDirectoriesExist(FString BasePath)
     }
 }
 
+void UYoloDatasetGenerate::EnsureDirectoriesExist_Single(FString BasePath)
+{
+    IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+    if (!PlatformFile.DirectoryExists(*(BasePath / TEXT("images"))))
+    {
+        PlatformFile.CreateDirectoryTree(*(BasePath / TEXT("images")));
+    }
+    if (!PlatformFile.DirectoryExists(*(BasePath / TEXT("labels"))))
+    {
+        PlatformFile.CreateDirectoryTree(*(BasePath / TEXT("labels")));
+    }
+}
+
 // 2. 计算Result格式数据（类型+关键点）
 FYoloData UYoloDatasetGenerate::CalculateYoloFromSockets(UStaticMeshComponent* MeshComp, APlayerController* PC)
 {
