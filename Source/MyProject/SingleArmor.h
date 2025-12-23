@@ -77,7 +77,7 @@
         float SpawnHalfAngle = 40.0f;
 
         UPROPERTY(EditAnywhere, Category = "Config")
-        FVector2D ScaleRange = FVector2D(0.5f, 2.0f);
+        FVector2D ScaleRange = FVector2D(4.5f, 5.5f);
 
         UPROPERTY(EditAnywhere, Category = "Config")
         float OverlapCheckRadius = 25.0f;

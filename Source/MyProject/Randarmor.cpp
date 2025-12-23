@@ -3,6 +3,7 @@
 #include "Engine/StaticMeshActor.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "Engine/World.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/EngineTypes.h"
@@ -45,6 +46,22 @@
     //核心函数
     void ARandarmor::GenerateScene()
     {
+        if (GlobalIndex > 3000)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Target Reached,  Stopping Program..."));
+
+            // 获取 PlayerController 用于退出函数 (可以是 nullptr，但填上也无妨)
+            APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+
+            // 执行退出
+            // EQuitPreference::Quit 表示完全退出
+            // false 表示不忽略平台特定的退出确认
+            UKismetSystemLibrary::QuitGame(this, PC, EQuitPreference::Quit, false);
+
+            // 如果是在编辑器里运行，这会停止 PIE (Play In Editor)
+            // 如果是打包后的游戏，这会关闭窗口
+            return;
+        }
         //换背景，清除上张图的数据
         UpdateBackground();
         if (ThemePresets.Num() == 0)
@@ -130,7 +147,7 @@
 
 
             UStaticMesh* SelectedMesh = ArmorMeshes[Selectednumber];
-            Labelnumber.Add(Selectednumber);
+          
             FTransform SpawnTransform(SpawnRot, SpawnLoc, FVector(Selectedscale));
 
             FActorSpawnParameters SpawnParams;
@@ -174,6 +191,7 @@
 
 
                 SpawnedArmors.Add(NewArmor);
+                Labelnumber.Add(Selectednumber);
                 SuccessCount++;
             }
         }
@@ -214,6 +232,7 @@
     {
         UYoloDatasetGenerate::SaveDatasetEntry(GetWorld(), GlobalIndex, LabelData);
         GlobalIndex++;
+ 
     }
 
     void ARandarmor::ClearScene()

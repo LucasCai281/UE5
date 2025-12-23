@@ -1,3 +1,4 @@
+/*
 #pragma once
 
 #include "CoreMinimal.h"
@@ -34,7 +35,6 @@ class MYPROJECT_API ABuff : public AActor
 public:
     ABuff();
 
-    int32 Selectednumber;
     float Selectedscale;
 
     UPROPERTY()
@@ -49,6 +49,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "DataGeneration")
     void ClearScene();
 
+    //相机视野
     UFUNCTION(BlueprintCallable, Category = "CVSyntheticData")
     FVector GetPlaneUniformRandomDir(FRotator CamRotation, float HorzontalHalfAngleDeg, float AspectRatio);
 
@@ -61,11 +62,7 @@ protected:
     TArray<FSceneTheme> ThemePresets;
 
     UPROPERTY(EditAnywhere, Category = "Config")
-    TArray<UStaticMesh*> ArmorMeshes;
-
-
-    UPROPERTY(EditAnywhere, Category = "Config", meta = (ToolTip = "X=最小数量, Y=最大数量"))
-    FIntPoint SpawnCountRange = FIntPoint(1, 5);
+    UStaticMesh Buffmode;
 
 
     UPROPERTY(EditAnywhere, Category = "Config")
@@ -109,3 +106,5 @@ private:
     void ApplyTheme(int32 ThemeIndex);
 
 };
+*/
+

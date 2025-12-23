@@ -98,7 +98,7 @@
 
             //1. 随机生成位置 (四棱锥范围)
             float RandomDist = FMath::RandRange(SpawnDistanceRange.X, SpawnDistanceRange.Y);
-            FVector RandomDir = GetPlaneUniformRandomDir(CameraRot, SpawnHalfAngle, TargetAspectRatio);
+            FVector RandomDir = CamFwd;
             FVector SpawnLoc = CamLoc + (RandomDir * RandomDist);
 
             //2. 随机生成旋转 
@@ -132,7 +132,7 @@
 
 
             UStaticMesh* SelectedMesh = ArmorMeshes[Selectednumber];
-            Labelnumber.Add(Selectednumber);
+            
             FTransform SpawnTransform(SpawnRot, SpawnLoc, FVector(Selectedscale));
 
             FActorSpawnParameters SpawnParams;
@@ -176,6 +176,7 @@
 
 
                 SpawnedArmors.Add(NewArmor);
+                Labelnumber.Add(Selectednumber);
                 SuccessCount++;
             }
         }
